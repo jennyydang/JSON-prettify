@@ -3,18 +3,32 @@
 import { useState, useRef, useCallback } from "react";
 
 // Recursively parse any string values that are themselves valid JSON.
+// Three strategies handle: properly encoded, control-char-embedded, and double-escaped strings.
 function deepUnstring(value: unknown): unknown {
   if (typeof value === "string") {
     const trimmed = value.trim();
-    if (
-      (trimmed.startsWith("{") && trimmed.endsWith("}")) ||
-      (trimmed.startsWith("[") && trimmed.endsWith("]"))
-    ) {
+    if (trimmed.startsWith("{") || trimmed.startsWith("[")) {
+      // Strategy 1: direct parse (single-encoded JSON string)
       try {
         return deepUnstring(JSON.parse(trimmed));
-      } catch {
-        return value;
-      }
+      } catch { /* try next */ }
+
+      // Strategy 2: escape embedded raw control characters (e.g. literal CR/LF inside string values)
+      try {
+        const fixed = trimmed
+          .replace(/\t/g, "\\t")
+          .replace(/\r/g, "\\r")
+          .replace(/\n/g, "\\n");
+        return deepUnstring(JSON.parse(fixed));
+      } catch { /* try next */ }
+
+      // Strategy 3: double-encoded string — quotes are escaped as \" so we wrap and parse twice
+      try {
+        const inner = JSON.parse('"' + trimmed + '"');
+        if (typeof inner === "string" && (inner.startsWith("{") || inner.startsWith("["))) {
+          return deepUnstring(JSON.parse(inner));
+        }
+      } catch { /* not parseable, keep original */ }
     }
     return value;
   }
