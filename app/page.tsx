@@ -17,7 +17,9 @@ export default function Home() {
     }
     try {
       const parsed = JSON.parse(input);
-      setOutput(JSON.stringify(parsed, null, 2));
+      const pretty = JSON.stringify(parsed, null, 2);
+      setInput(pretty);
+      setOutput(pretty);
       setError("");
     } catch (e) {
       setError(`Invalid JSON: ${(e as Error).message}`);
