@@ -2,6 +2,34 @@
 
 import { useState, useRef, useCallback } from "react";
 
+// Recursively parse any string values that are themselves valid JSON.
+function deepUnstring(value: unknown): unknown {
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    if (
+      (trimmed.startsWith("{") && trimmed.endsWith("}")) ||
+      (trimmed.startsWith("[") && trimmed.endsWith("]"))
+    ) {
+      try {
+        return deepUnstring(JSON.parse(trimmed));
+      } catch {
+        return value;
+      }
+    }
+    return value;
+  }
+  if (Array.isArray(value)) return value.map(deepUnstring);
+  if (value !== null && typeof value === "object") {
+    return Object.fromEntries(
+      Object.entries(value as Record<string, unknown>).map(([k, v]) => [
+        k,
+        deepUnstring(v),
+      ])
+    );
+  }
+  return value;
+}
+
 export default function Home() {
   const [input, setInput] = useState("");
   const [output, setOutput] = useState("");
@@ -16,7 +44,7 @@ export default function Home() {
       return;
     }
     try {
-      const parsed = JSON.parse(input);
+      const parsed = deepUnstring(JSON.parse(input));
       const pretty = JSON.stringify(parsed, null, 2);
       setInput(pretty);
       setOutput(pretty);
